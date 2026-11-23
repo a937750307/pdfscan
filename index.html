@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>让PDF看起来像扫描件</title>
+  <meta name="description" content="纯前端工具，把 PDF 转换成带有纸张纹理、倾斜、噪点与模糊的扫描件效果。文件不上传，可离线使用。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231c1917'/%3E%3Cpath d='M10 7h9l5 5v13H10z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M19 7v5h5' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page">
+    <main>
+      <section class="intro">
+        <h1>让PDF看起来像扫描件</h1>
+        <p>纸张泛黄、轻微歪斜、扫描噪点与失焦——所有处理都在你的浏览器里完成。</p>
+      </section>
+
+      <div class="workspace" id="workspace">
+        <section class="panel panel-left" aria-label="文件与预览">
+          <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="选择或拖入 PDF 文件">
+            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+            </svg>
+            <div class="drop-title">拖入 PDF，或点击选择</div>
+            <div class="drop-sub">支持多页，单文件最大 50 MB</div>
+            <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+          </div>
+
+          <div id="fileBar" class="file-bar hidden">
+            <div class="file-meta">
+              <span class="file-name" id="fileName">—</span>
+              <span class="file-detail" id="fileDetail">—</span>
+            </div>
+            <button type="button" id="replaceBtn" class="text-button">更换</button>
+          </div>
+
+          <div id="previewWrap" class="preview-wrap hidden">
+            <div class="preview-head">
+              <span id="previewLabel">原始页面</span>
+              <div class="preview-nav">
+                <button type="button" id="prevPage" class="icon-button" aria-label="上一页">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <span id="pageIndicator">1 / 1</span>
+                <button type="button" id="nextPage" class="icon-button" aria-label="下一页">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="preview-stage">
+              <canvas id="previewCanvas"></canvas>
+            </div>
+          </div>
+
+          <div id="status" class="status" aria-live="polite"></div>
+        </section>
+
+        <section class="panel panel-right" aria-label="效果设置">
+          <div class="panel-heading">
+            <h2>效果设置</h2>
+            <button type="button" id="resetBtn" class="text-button">恢复默认</button>
+          </div>
+
+          <div class="presets" id="presets" role="group" aria-label="效果预设">
+            <button type="button" class="preset" data-preset="light">轻微</button>
+            <button type="button" class="preset active" data-preset="standard">标准</button>
+            <button type="button" class="preset" data-preset="strong">明显</button>
+            <button type="button" class="preset" data-preset="vintage">复古</button>
+          </div>
+
+          <div class="controls">
+            <label class="control" for="skew">
+              <span class="control-label">倾斜角度 <em>°</em></span>
+              <span class="control-value" id="skewValue">0.6</span>
+              <input type="range" id="skew" min="0" max="5" step="0.1" value="0.6">
+            </label>
+            <label class="control" for="paperTone">
+              <span class="control-label">纸张色调</span>
+              <span class="control-value" id="paperToneValue">0.60</span>
+              <input type="range" id="paperTone" min="0" max="1" step="0.01" value="0.6">
+            </label>
+            <label class="control" for="noise">
+              <span class="control-label">扫描噪点</span>
+              <span class="control-value" id="noiseValue">0.08</span>
+              <input type="range" id="noise" min="0" max="1" step="0.01" value="0.08">
+            </label>
+            <label class="control" for="blur">
+              <span class="control-label">镜头失焦</span>
+              <span class="control-value" id="blurValue">0.4</span>
+              <input type="range" id="blur" min="0" max="5" step="0.1" value="0.4">
+            </label>
+            <label class="control" for="edgeShadow">
+              <span class="control-label">边缘阴影</span>
+              <span class="control-value" id="edgeShadowValue">0.15</span>
+              <input type="range" id="edgeShadow" min="0" max="1" step="0.01" value="0.15">
+            </label>
+            <label class="control" for="jpegQuality">
+              <span class="control-label">JPEG 质量</span>
+              <span class="control-value" id="jpegQualityValue">70</span>
+              <input type="range" id="jpegQuality" min="10" max="100" step="1" value="70">
+            </label>
+            <label class="control" for="dpi">
+              <span class="control-label">渲染 DPI</span>
+              <span class="control-value" id="dpiValue">150</span>
+              <input type="range" id="dpi" min="72" max="300" step="6" value="150">
+            </label>
+
+            <div class="control control-row">
+              <label class="switch-label" for="grayscale">
+                <span>黑白灰度</span>
+                <input type="checkbox" id="grayscale" checked>
+                <span class="switch" aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <label class="control" for="seed">
+              <span class="control-label">随机种子 <em>可选</em></span>
+              <input type="text" id="seed" class="text-input" placeholder="留空则根据文件内容生成" autocomplete="off">
+              <span class="field-hint">决定每页的倾斜角度与噪点分布。相同种子 + 相同参数 = 完全相同的效果；换个种子就能得到另一种摆放姿态。</span>
+            </label>
+          </div>
+
+          <div class="actions">
+            <div class="progress-track" id="progressTrack" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+            <button type="button" id="generateBtn" class="primary-button" disabled>
+              <span id="generateLabel">生成扫描件</span>
+            </button>
+            <button type="button" id="downloadBtn" class="secondary-button hidden">下载 PDF</button>
+          </div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="vendor/pdf.min.js"></script>
+  <script src="vendor/pdf.worker.wrap.js"></script>
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
